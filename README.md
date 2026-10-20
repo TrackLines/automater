@@ -17,13 +17,21 @@ The rules live in the backend's [`retention`](https://github.com/TrackLines/back
 
 ## Railway
 
-A service from this repo, with no domain. `railway.json` sets the Dockerfile build, the schedule `0 0 * * *` (UTC) and no restarts. Its variables:
+A service from this repo, with no domain. It needs no start command: the image's entrypoint runs both jobs and exits. Set these in the service's **Settings** (new services can't use a `railway.json`, since Railway deprecated Config as Code):
+
+- **Build:** Dockerfile (Railway finds `Dockerfile` at the root).
+- **Cron Schedule:** `0 0 * * *` (UTC).
+- **Restart Policy:** Never, so a failed night isn't run again straight away. The next night retries.
+
+Its variables:
 
 | Variable | What |
 |---|---|
-| `DATABASE_URL` | the backend's Postgres (Railway's reference variable). Or the backend's own `RDS_HOSTNAME`, `RDS_PORT`, `RDS_DB`, `RDS_USERNAME` and `RDS_PASSWORD` |
+| `RDS_URL` | the backend's Postgres, the same value as the backend's. Or `RDS_HOSTNAME`, `RDS_PORT`, `RDS_DB`, `RDS_USERNAME` and `RDS_PASSWORD` |
 | `UPLOADTHING_TOKEN` | the same as the backend's, for deleting files |
-| `BUGFIXES_AGENT_KEY`, `BUGFIXES_AGENT_SECRET` | an agent for the `automation` service. Without them, failures are only logged |
+| `BUGFIXES_AGENT_KEY`, `BUGFIXES_AGENT_SECRET` | an agent for the `automation` service. Without them, or with `BUGFIXES_LOCAL_ONLY=true`, failures are only logged |
+
+It reads these with [go-config](https://github.com/keloran/go-config), like the backend, so the names are the same.
 
 Run it once by hand after setting it up. The log should show `purge: …` and `sweep-files: …`.
 
@@ -33,4 +41,4 @@ Run it once by hand after setting it up. The log should show `purge: …` and `s
 go test ./...
 ```
 
-The backend's `retention` tests cover the SQL against a real database. This repo's tests cover running the two jobs and reading the database settings.
+The backend's `retention` tests cover the SQL against a real database. This repo's tests cover running the two jobs.

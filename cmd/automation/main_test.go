@@ -30,17 +30,3 @@ func TestNightly(t *testing.T) {
 		t.Fatalf("both failures: %v", err)
 	}
 }
-
-func TestDatabaseURL(t *testing.T) {
-	env := func(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
-	if u, _ := databaseURL(env(map[string]string{"DATABASE_URL": "postgres://a@b/c", "RDS_HOSTNAME": "ignored"})); u != "postgres://a@b/c" {
-		t.Fatalf("DATABASE_URL first: %q", u)
-	}
-	u, err := databaseURL(env(map[string]string{"RDS_HOSTNAME": "db.internal", "RDS_DB": "tracklines", "RDS_USERNAME": "tl", "RDS_PASSWORD": "p@ss/word"}))
-	if err != nil || u != "postgres://tl:p%40ss%2Fword@db.internal:5432/tracklines" {
-		t.Fatalf("from RDS_*: %q %v", u, err)
-	}
-	if _, err := databaseURL(env(nil)); err == nil || !strings.Contains(err.Error(), "DATABASE_URL") {
-		t.Fatalf("no database: %v", err)
-	}
-}

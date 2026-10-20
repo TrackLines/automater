@@ -9,13 +9,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"time"
 
 	bugfixes "github.com/bugfixes/go-bugfixes"
 	"github.com/bugfixes/go-bugfixes/logs"
-	"github.com/jackc/pgx/v5/pgxpool"
+	ConfigBuilder "github.com/keloran/go-config"
 	"github.com/tracklines/backend/retention"
 )
 
@@ -27,12 +26,20 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	setupBugfixes()
-	dsn, err := databaseURL(os.Getenv)
-	if err != nil {
-		return err
+	// the backend's own config library, so the same variables work here: RDS_URL (or RDS_HOSTNAME,
+	// RDS_PORT, RDS_DB, RDS_USERNAME, RDS_PASSWORD), BUGFIXES_AGENT_KEY/SECRET, BUGFIXES_LOCAL_ONLY
+	c := ConfigBuilder.NewConfigNoVault()
+	if err := c.Build(ConfigBuilder.Local, ConfigBuilder.Postgres, ConfigBuilder.Bugfixes); err != nil {
+		return fmt.Errorf("config: %w", err)
 	}
-	db, err := pgxpool.New(ctx, dsn)
+	bugfixes.SetDefaultConfig(bugfixes.Config{
+		Server:      c.Bugfixes.Server,
+		AgentKey:    c.Bugfixes.AgentKey,
+		AgentSecret: c.Bugfixes.AgentSecret,
+		Service:     "automation",
+		LocalOnly:   c.Local.KeepLocal || c.Bugfixes.AgentKey == "",
+	})
+	db, err := c.Database.GetPGXPoolClient(ctx)
 	if err != nil {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
@@ -67,35 +74,4 @@ func nightly(ctx context.Context, purge, sweep job) error {
 		}
 	}
 	return errors.Join(failed...)
-}
-
-// databaseURL is DATABASE_URL (Railway's Postgres provides it), or the backend's own RDS_* variables,
-// so either can be copied across.
-func databaseURL(env func(string) string) (string, error) {
-	if u := env("DATABASE_URL"); u != "" {
-		return u, nil
-	}
-	host, db := env("RDS_HOSTNAME"), env("RDS_DB")
-	if host == "" || db == "" {
-		return "", errors.New("no database: set DATABASE_URL, or RDS_HOSTNAME, RDS_PORT, RDS_DB, RDS_USERNAME and RDS_PASSWORD")
-	}
-	port := env("RDS_PORT")
-	if port == "" {
-		port = "5432"
-	}
-	u := url.URL{Scheme: "postgres", User: url.UserPassword(env("RDS_USERNAME"), env("RDS_PASSWORD")), Host: host + ":" + port, Path: "/" + db}
-	return u.String(), nil
-}
-
-// setupBugfixes reports failures as the service "automation", with BUGFIXES_AGENT_KEY and
-// BUGFIXES_AGENT_SECRET (the agent made for this service). Without them, failures are only logged.
-func setupBugfixes() {
-	key, secret := os.Getenv("BUGFIXES_AGENT_KEY"), os.Getenv("BUGFIXES_AGENT_SECRET")
-	bugfixes.SetDefaultConfig(bugfixes.Config{
-		Server:      bugfixes.DefaultServer,
-		AgentKey:    key,
-		AgentSecret: secret,
-		Service:     "automation",
-		LocalOnly:   key == "" || secret == "",
-	})
 }
