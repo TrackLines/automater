@@ -2,14 +2,10 @@ module github.com/tracklines/automation
 
 go 1.26.1
 
-// ponytail: until the backend's retention package is pushed, build against the local checkout; then
-// `go get github.com/tracklines/backend@main` and delete this line.
-replace github.com/tracklines/backend => ../backend
-
 require (
 	github.com/bugfixes/go-bugfixes v0.19.5
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/tracklines/backend v0.0.0
+	github.com/tracklines/backend v0.0.0-20261020175431-16e5dafe6014
 )
 
 require (
