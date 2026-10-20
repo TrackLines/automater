@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -18,11 +19,26 @@ import (
 	"github.com/tracklines/backend/retention"
 )
 
+// limit is how long a night's run may take: a stuck query is cancelled and reported, rather than
+// the cron service running until the next night.
+const limit = 10 * time.Minute
+
 func main() {
-	if err := run(context.Background()); err != nil {
+	// progress goes to stdout with the standard logger: the Bugfixes SDK only prints at its log level
+	// (error, by default) once it has agent keys, so its Logf lines never reach Railway's logs
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.LstdFlags | log.LUTC)
+	log.Print("automation: starting")
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
+	err := run(ctx)
+	cancel()
+	if err != nil {
 		_ = logs.Errorf("automation: %v", err) // to Bugfixes, as the service "automation"
+		// ponytail: the SDK sends in the background with a 10s timeout; wait that long so the report isn't lost on exit
+		time.Sleep(bugfixes.DefaultTimeout)
 		os.Exit(1)
 	}
+	log.Print("automation: done")
 }
 
 func run(ctx context.Context) error {
@@ -44,6 +60,14 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
 	defer db.Close()
+	// the pool connects lazily with no connect timeout: check it now, so an unreachable host fails in
+	// seconds with a clear error instead of hanging inside the first query
+	pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := db.Ping(pingCtx); err != nil {
+		return fmt.Errorf("connect postgres at %s:%d: %w", c.Database.Details.Host, c.Database.Details.Port, err)
+	}
+	log.Printf("automation: connected to postgres at %s", c.Database.Details.Host)
 	files := retention.UploadThing{Token: os.Getenv("UPLOADTHING_TOKEN")}
 	return nightly(ctx,
 		func(ctx context.Context) (string, error) {
@@ -67,8 +91,15 @@ func nightly(ctx context.Context, purge, sweep job) error {
 		name string
 		run  job
 	}{{"purge", purge}, {"sweep-files", sweep}} {
+		log.Printf("%s: starting", j.name)
+		start := time.Now()
 		done, err := j.run(ctx)
-		logs.Logf("%s: %s", j.name, done)
+		took := time.Since(start).Round(time.Millisecond)
+		if err != nil {
+			log.Printf("%s: failed after %s: %v", j.name, took, err)
+		} else {
+			log.Printf("%s: %s (%s)", j.name, done, took)
+		}
 		if err != nil {
 			failed = append(failed, fmt.Errorf("%s: %w", j.name, err))
 		}

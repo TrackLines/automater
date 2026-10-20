@@ -33,7 +33,19 @@ Its variables:
 
 It reads these with [go-config](https://github.com/keloran/go-config), like the backend, so the names are the same.
 
-Run it once by hand after setting it up. The log should show `purge: …` and `sweep-files: …`.
+Run it once by hand after setting it up. The log shows each step:
+
+```
+automation: starting
+automation: connected to postgres at …
+purge: starting
+purge: 0 ticket(s) from the bin, 0 deleted organization(s), … (8ms)
+sweep-files: starting
+sweep-files: deleted 0 file(s) from UploadThing (1ms)
+automation: done
+```
+
+If the database can't be reached, it says so within 15 seconds and exits with 1. A run that takes longer than 10 minutes is stopped and reported, so it never runs into the next night.
 
 ## Development
 
