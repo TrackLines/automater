@@ -2,6 +2,8 @@ module github.com/tracklines/automation
 
 go 1.26.1
 
+toolchain go1.27.3
+
 require (
 	github.com/bugfixes/go-bugfixes v0.19.5
 	github.com/keloran/go-config/v2 v2.0.1
