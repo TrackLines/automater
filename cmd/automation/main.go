@@ -15,7 +15,9 @@ import (
 
 	bugfixes "github.com/bugfixes/go-bugfixes"
 	"github.com/bugfixes/go-bugfixes/logs"
-	ConfigBuilder "github.com/keloran/go-config"
+	configbugfixes "github.com/keloran/go-config/v2/bugfixes"
+	"github.com/keloran/go-config/v2/database/postgres"
+	"github.com/keloran/go-config/v2/local"
 	"github.com/tracklines/backend/retention"
 )
 
@@ -44,18 +46,27 @@ func main() {
 func run(ctx context.Context) error {
 	// the backend's own config library, so the same variables work here: RDS_URL (or RDS_HOSTNAME,
 	// RDS_PORT, RDS_DB, RDS_USERNAME, RDS_PASSWORD), BUGFIXES_AGENT_KEY/SECRET, BUGFIXES_LOCAL_ONLY
-	c := ConfigBuilder.NewConfigNoVault()
-	if err := c.Build(ConfigBuilder.Local, ConfigBuilder.Postgres, ConfigBuilder.Bugfixes); err != nil {
+	// (just the three parts it uses, go-config v2, so nothing else is built in)
+	l, err := local.Build()
+	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
+	pg := postgres.NewSystem()
+	if _, err := pg.Build(); err != nil {
+		return fmt.Errorf("database config: %w", err)
+	}
+	bf := configbugfixes.NewSystem()
+	if _, err := bf.Build(); err != nil {
+		return fmt.Errorf("bugfixes config: %w", err)
+	}
 	bugfixes.SetDefaultConfig(bugfixes.Config{
-		Server:      c.Bugfixes.Server,
-		AgentKey:    c.Bugfixes.AgentKey,
-		AgentSecret: c.Bugfixes.AgentSecret,
+		Server:      bf.Server,
+		AgentKey:    bf.AgentKey,
+		AgentSecret: bf.AgentSecret,
 		Service:     "automation",
-		LocalOnly:   c.Local.KeepLocal || c.Bugfixes.AgentKey == "",
+		LocalOnly:   l.KeepLocal || bf.AgentKey == "",
 	})
-	db, err := c.Database.GetPGXPoolClient(ctx)
+	db, err := pg.GetPGXPoolClient(ctx)
 	if err != nil {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
@@ -65,9 +76,9 @@ func run(ctx context.Context) error {
 	pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if err := db.Ping(pingCtx); err != nil {
-		return fmt.Errorf("connect postgres at %s:%d: %w", c.Database.Details.Host, c.Database.Details.Port, err)
+		return fmt.Errorf("connect postgres at %s:%d: %w", pg.Host, pg.Port, err)
 	}
-	log.Printf("automation: connected to postgres at %s", c.Database.Details.Host)
+	log.Printf("automation: connected to postgres at %s", pg.Host)
 	files := retention.UploadThing{Token: os.Getenv("UPLOADTHING_TOKEN")}
 	return nightly(ctx,
 		func(ctx context.Context) (string, error) {
