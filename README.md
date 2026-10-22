@@ -23,6 +23,7 @@ A service from this repo, with no domain. It needs no start command: the image's
 - **Build:** Dockerfile (Railway finds `Dockerfile` at the root).
 - **Cron Schedule:** `0 0 * * *` (UTC).
 - **Restart Policy:** Never, so a failed night isn't run again straight away. The next night retries.
+- **Deploys:** only from tagged releases. Publishing the Release Drafter draft creates a `v*` tag, and `.github/workflows/deploy-production.yml` runs `railway up` for it. Turn off the service's GitHub auto-deploy from `main`.
 
 Its variables:
 
