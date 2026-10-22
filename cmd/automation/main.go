@@ -18,6 +18,7 @@ import (
 	configbugfixes "github.com/keloran/go-config/v2/bugfixes"
 	"github.com/keloran/go-config/v2/database/postgres"
 	"github.com/keloran/go-config/v2/local"
+	"github.com/keloran/go-config/v2/onepassword"
 	"github.com/tracklines/backend/retention"
 )
 
@@ -47,6 +48,16 @@ func run(ctx context.Context) error {
 	// the backend's own config library, so the same variables work here: RDS_URL (or RDS_HOSTNAME,
 	// RDS_PORT, RDS_DB, RDS_USERNAME, RDS_PASSWORD), BUGFIXES_AGENT_KEY/SECRET, BUGFIXES_LOCAL_ONLY
 	// (just the three parts it uses, go-config v2, so nothing else is built in)
+	// secrets from 1Password's tracklines vault, an item per service (TL-526); nothing without
+	// OP_SERVICE_ACCOUNT_TOKEN, and a variable that's already set wins
+	if err := onepassword.Load("tracklines", map[string]string{
+		"bugfixes_automation.username":    "BUGFIXES_AGENT_KEY",
+		"bugfixes_automation.credential":  "BUGFIXES_AGENT_SECRET",
+		"bugfixes_automation.service":     "BUGFIXES_SERVICE",
+		"uploadthing_automation.username": "UPLOADTHING_TOKEN",
+	}); err != nil {
+		return fmt.Errorf("1password: %w", err)
+	}
 	l, err := local.Build()
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
