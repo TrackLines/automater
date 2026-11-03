@@ -7,7 +7,7 @@ toolchain go1.27.3
 require (
 	github.com/bugfixes/go-bugfixes v0.19.5
 	github.com/keloran/go-config/v2 v2.1.1
-	github.com/tracklines/backend v0.9.0
+	github.com/tracklines/backend v0.14.0
 )
 
 require (
