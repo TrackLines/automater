@@ -7,7 +7,7 @@ toolchain go1.27.3
 require (
 	github.com/bugfixes/go-bugfixes v0.19.5
 	github.com/keloran/go-config/v2 v2.1.1
-	github.com/tracklines/backend v0.14.0
+	github.com/tracklines/backend v0.19.0
 )
 
 require (
@@ -20,7 +20,7 @@ require (
 	github.com/ianlancetaylor/demangle v0.0.0-20251118225945-96ee0021ea0f // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.11.0 // indirect
+	github.com/jackc/pgx/v5 v5.12.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
