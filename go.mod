@@ -1,13 +1,11 @@
 module github.com/tracklines/automation
 
-go 1.26.1
-
-toolchain go1.27.3
+go 1.27.4
 
 require (
 	github.com/bugfixes/go-bugfixes v0.19.5
 	github.com/keloran/go-config/v2 v2.1.1
-	github.com/tracklines/backend v0.19.0
+	github.com/tracklines/backend v0.23.3
 )
 
 require (
